@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/../ComparativeSentencesExtraction/.idea/LitStoryTeller.iml" filepath="$PROJECT_DIR$/../ComparativeSentencesExtraction/.idea/LitStoryTeller.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/ComparativeSentencesExtraction.iml" filepath="$PROJECT_DIR$/.idea/ComparativeSentencesExtraction.iml" />
     </modules>
   </component>
 </project>

@@ -1,0 +1,19 @@
+Latent semantic indexing LSI is an information retrieval technique based on the spectral analysis of the termdocument matrix whose empirical success had heretofore been without rigorous prediction and explanation.
+We prove that under certain conditions LSI does succeed in capturing the underlying semantics of the corpus and achieves improved retrieval performance.
+We also propose the technique of random projection as a way of speeding up LSI.
+We complement our theorems with encouraging experimental results.
+We also argue that our results may be viewed in a more general framework as a theoretical basis for the use of spectral methods in a wider class of applications such as collaborative fltering.
+Even though Theorem gives an asymptotic result and only claims that the probability approaches as the size parameters grow the phenomenon it indicates can be observed in corpora of modest sizes as is seen in the following experiment.
+We generated documents each  to  terms long from a corpus model with  terms and  topics.
+Each topic is assigned a disjoint set of terms as its primary set.
+The probability distribution for each topic is such that of its probability density is equally distributed among terms from the primary set and the remaining is equally distributed among all the terms.
+Thus this corpus model is separable.
+We measured the angle not some function of the angle such as the cosine between all pairs of documents in the original space and in the rank LSI space.
+The following is a typical result; similar results are obtained from repeated trials.
+Call a pair of documents intra
+topic if the two documents are generated from the same topic and inter
+topic otherwise Here angles are measured in radians.
+It can be seen that the angles of intratopic pairs are dramatically reduced in the LSI space.
+Although the minimum intertopic angle is rather smallindicating that some intertopic pairs can be close enough to be confused the average and the standard deviation show that such pairs are extremely rare.
+Results from experiments with different sizeparameters are also similar in spirit.
+In this and the other experiments reported here we used SVDPACKC for singular value decomposition.
