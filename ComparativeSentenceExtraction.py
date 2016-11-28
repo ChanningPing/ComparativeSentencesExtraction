@@ -5,7 +5,11 @@ annual international ACM SIGIR conference on Research and development in informa
     (2) Jindal, N., & Liu, B. (2006, July). Mining comparative sentences and relations. In AAAI (Vol. 22, pp. 1331-1336).
     (3) Ganapathibhotla, M., & Liu, B. (2008, August). Mining opinions in comparative sentences. In Proceedings of the 22nd
 International Conference on Computational Linguistics-Volume 1 (pp. 241-248). Association for Computational Linguistics.
+TODO:
+train()
+predict()
 '''
+from __future__ import print_function
 import os
 import sys
 import nltk
@@ -13,7 +17,10 @@ import nltk.tokenize.punkt
 import pickle
 import codecs
 import string
+import csv
 from nltk.stem.snowball import SnowballStemmer
+
+from collections import defaultdict
 
 #global variables setting
 reload(sys)
@@ -21,7 +28,9 @@ sys.setdefaultencoding('utf8')
 stemmer = SnowballStemmer("english")
 window_size=3 #radius from the keyword to generate the sequence
 sequences=[]# sequences
-
+seq_labels=[]#labels of the sequences
+TAU=0.1
+min_confidence=0.6
 # the keyword list is derived from the keyweord list provided by Liu Bing, but we use the stemmed ones, we also remove repeated ones and phrases
 # phrases are used for exact match in another part
 keyword_dict = {'advantag': 1, 'after': 1, 'ahead': 1, 'all': 1, 'altern': 1, 'altogeth': 1, 'beat': 1, 'befor': 1,
@@ -59,7 +68,7 @@ def Paragraph_to_Sentence(paragraph):
     return sent_detector.tokenize(paragraph.strip())
 
 
-def getSequence (tagged_tuples, idx, tag, word, window_size):
+def getSequence (tagged_tuples, idx, tag, word, window_size,label):
     start = idx - window_size if idx - window_size >= 0  else 0  # start index of sequence
     end = idx + window_size + 1 if (idx + window_size + 1) <= len(tagged_tuples) else len(
         tagged_tuples)  # end index of sequence
@@ -70,17 +79,19 @@ def getSequence (tagged_tuples, idx, tag, word, window_size):
     sub_tuples = left_sub_tuples + keyword + right_sub_tuples  # concatenate together
 
     sequences.append(sub_tuples)
+    seq_labels.append(label)
     #print(tagged_tuples)
     #print("in the other function:"+tag+","+word)
-    #print(sequences)
+    #print(sub_tuples)
+    #print(seq_labels)
 
-def SequenceBuilder(sentences,window_size):
+def SequenceBuilder(sentences,labels, window_size):
     '''
     :param sentences: a list of sentences
     :param window_size: the radius from the keyword to generate the sequence
     :return:
     '''
-    for text in sentences:
+    for id, text in enumerate(sentences):
         flag='NO' #whether this is a comparative candidate,flag=1:is candidate;flag=0: is not a candidate
         #text = "heavier  than the previous algorithm, but the previous one is number one, as efficient as it seems, our work improves rest of the work "
         text = text.translate(None, string.punctuation)
@@ -92,7 +103,7 @@ def SequenceBuilder(sentences,window_size):
             if item[1] == 'JJR' or item[1] == 'RBR' or item[1] == 'JJS' or item[1] == 'RBS':
                 flag='YES'
                 #print(item)
-                getSequence(tagged_tuples, idx, item[1], item[0], window_size)
+                getSequence(tagged_tuples, idx, item[1], item[0], window_size,labels[id])
 
         # if the sentence contains as {} as,keep it, here we increase window size by 1 to accomodate the as...as as context
         indices = [i for i, item in enumerate(tagged_tuples) if item[0] == 'as' and item[1] == 'RB']
@@ -102,13 +113,13 @@ def SequenceBuilder(sentences,window_size):
                                 0] == 'as' and tagged_tuples[index + 2][1] == 'IN':
                 flag = 'YES'
                 getSequence(tagged_tuples, index + 1, tagged_tuples[index + 1][1], tagged_tuples[index + 1][0],
-                            window_size + 1)
+                            window_size + 1,labels[id])
 
         # if the sentence contains certain keyword, keep it
         for idx, item in enumerate(tagged_tuples):
             if stemmer.stem(item[0]) in keyword_dict:
                 flag = 'YES'
-                getSequence(tagged_tuples, idx, item[1], str(stemmer.stem(item[0])), window_size)
+                getSequence(tagged_tuples, idx, item[1], str(stemmer.stem(item[0])), window_size,labels[id])
 
         # if the sentence contains phrases, use this as a feature
         for phrase in comparative_phrases:
@@ -116,7 +127,7 @@ def SequenceBuilder(sentences,window_size):
                 flag = 'YES'
                 #print("candidate based on \'" + phrase + "\'")
 
-        print(flag+","+text)
+
 
     #write sequences into file for later PrefixSpan sequence pattern mining
     file = open(os.path.join(os.getcwd(), 'sequence.csv'), 'w')
@@ -124,15 +135,96 @@ def SequenceBuilder(sentences,window_size):
         file.write("%s\n" % sequence)
 
 
-def main():
+def train():#train/test phase: one-time pass when training corpus is available.
+    # train the sentence segmenter, only one-time effort
+    SentenceTokenizationTrain()
+    # read training corpus line by line
+    labels=[] #list of labels
+    sentences=[]#list of sentences
+    with open("CSRTrainCorpus.txt") as f:
+        rows = [line.split(',') for line in f]  # create a list of lists
+        for row in rows:#row[0]: label; row[1]:sentence
+            labels.append(row[0])
+            sentences.append(row[1])
+    # generate keyword-POS tag sequences from sentences
+    SequenceBuilder(sentences, labels, window_size)
+    # find sequence patterns with PrefixSpan
+    CSR_Rules= PrefixSpanCSR(sequences, seq_labels, TAU,min_confidence)
+    #TODO: train with bayes classifier: read the sentence and label again, build a method to test match between sentence and rule
 
-    #with open(os.path.join(os.getcwd(), 'sentences_pLSI.txt')) as f:
-        #sentences = f.readlines()
-    SentenceTokenizationTrain() #train the sentence segmenter, only one-time effort
+    #print(sequences)
+    #print(seq_labels)
+
+def PrefixSpanCSR(sequences,seq_labels,TAU,min_confidence):
+    '''
+    This method is a slight modification of this implementation of PrefixSpan in Python:
+    https://github.com/chuanconggao/PrefixSpan-py
+    The original paper is here:
+    Han, J., Pei, J., Mortazavi-Asl, B., Pinto, H., Chen, Q., Dayal, U., & Hsu, M. C. (2001, April). Prefixspan: Mining sequential patterns efficiently by prefix-projected pattern growth. In proceedings of the 17th international conference on data engineering (pp. 215-224).
+
+    :param sequences: a set of sequences derived in SequenceBuilder()
+    :param seq_labels: a set of labels derived in SequenceBuilder()
+    :param TAU: the hyperparameter used in (Jindal & Liu, 2006) paper, used to give different items different min_sup
+    :param min_confidence:the hyperparameter used in (Jindal & Liu, 2006) paper
+    :return:
+    '''
+    results = []
+    def mine_rec(patt, mdb):
+        numYES = 0
+        numNO = 0
+        for coordinate in mdb:
+            if seq_labels[coordinate[0]] == 'YES':
+                numYES += 1
+            else:
+                numNO += 1
+        # the pattern, the frequency of the pattern, the number of YES labels, the number of NO labels
+        results.append((patt, len(mdb), numYES, numNO))
+        occurs = defaultdict(list)
+        for (i, startpos) in mdb:
+            seq = sequences[i]
+            for j in xrange(startpos, len(seq)):
+                l = occurs[seq[j]]
+                if len(l) == 0 or l[-1][0] != i:
+                    l.append((i, j + 1))
+
+        for (c, newmdb) in occurs.iteritems():
+            # the following if-statement is pruning, we stop this since we will prune in final stage using both sup and conf
+            # if len(newmdb) >= minsup:
+            mine_rec(patt + [c], newmdb)
+
+    mine_rec([], [(i, 0) for i in xrange(len(sequences))])
+
+    #filtering  the patterns by min_sup and min_confidence
+    CSR_rules=[]
+    for result in results:
+        sup = result[2]
+        min_sup = result[1] * TAU
+        confidence = result[2] / result[1]
+        if sup >= min_sup and confidence >= min_confidence:
+            CSR_rules.append(result)
+            print("sup=" + str(sup) + ",min_sup=" + str(min_sup) + ", confidence=" + str(confidence))
+            print(result[0])
+
+    with open('CSR_rules.csv', 'w') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',')
+        writer.writerow(['rule','frequency','sup','confidence'])
+        for rule in CSR_rules:
+            writer.writerow(rule)
+    return CSR_rules
+
+def predict():
+    #read a new paper
     with open('sentences_pLSI.txt', 'r') as file:
         paragraph = file.read().replace('\n', ' ')
+    #paragraph to a list of sentences
     sentences = Paragraph_to_Sentence(paragraph)
-    SequenceBuilder(sentences,window_size)
+
+
+def main():
+    train()
+
+
+
 
 
 main()

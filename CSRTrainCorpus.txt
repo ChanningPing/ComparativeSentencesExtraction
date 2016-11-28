@@ -1,0 +1,28 @@
+NO,"Probabilistic Latent Semantic Indexing is a novel approach to automated document indexing which is based on a statistical latent class model for factor analysis of count data"
+NO,"Fitted from a training corpus of text documents by a generalization of the Expectation Maximization algorithm the utilized model is able to deal with domainspecic synonymy as well as with polysemous words"
+YES,"In contrast to standard Latent Semantic Indexing LSI by Singular Value Decomposition the probabilistic variant has a solid statistical foundation and denes a proper generative data model"
+YES,"Retrieval experiments on a number of test collections indicate substantial performance gains over direct term matching methods as well as over LSI"
+YES,"In particular the combination of models with dierent dimensionalities has proven to be advantageous"
+YES,"The performance of PLSI has been systematically compared with the standard term matching method based on the raw term frequencies tf and their combination with the inverse document frequencies tdf as well as with LSI"
+NO,"We have utilized the following four mediumsized standard document collection i MED 1033 document abstracts from the National Library of Medicine ii CRAN 1400 document abstracts on aeronautics from the Craneld Institute of Technology iii CACM 3204 abstracts from the CACM journal and iv CISI 1460 abstracts in library science from the Institute for Scientic Information"
+NO,"The condensed results in terms of average precision recall at the 9 recall levels 10 􀀀 90 are summarized in Table 3"
+NO,"A selection of average precision recall curves can be found in Figure 3"
+NO,"Here are some details of the experimental setup PLSA models at K  32 48 64 80 128 have been trained by TEM for each data set with 10 heldout data"
+NO,"For PLSIU PLSIQ we report the best result obtained by any of these models for LSI we report the best result obtained for the optimal dimension exploring 32512 dimensions at a step size of 8"
+NO,"The combination weight  with the cosine baseline score has been coarsely optimized by hand MED CRAN   12 CACM CISI   23 in general slightly smaller weights have been utilized for the combined models"
+YES,"The experiments consistently validate the advantages of PLSI over LSI"
+YES,"Substantial performance gains have been achieved for all 4 data sets and both term weighting schemes"
+YES,"In particular PLSIQPLSIQ work particularly well on the raw term frequencies where LSI on the other hand may even fail completely in accordance with the results 56 reported in 1"
+YES,"We explain this by the fact that large frequencies dominate the squared error deviation used in SVD and a dampening eg by idf weighting is necessary to get a reasonable decomposition of the termdocument matrix"
+YES,"Since PLSIQ can not take much advantage from the term weighting scheme PLSIUPLSIU performs slightly better in this case"
+YES,"We suspect that even better results could be achieved by an improved integration of term weights in PLSIQ"
+NO,"The benets of model combination are also very substantial"
+YES,"In all cases the uniformly combined model performed better than the best single model"
+NO,"As a sighte ect model averaging also deliberates from selecting the optimal model dimensionality"
+YES,"In terms of computational complexity despite of the iterative nature of EM the computing time for TEM model tting at K  128 was roughly comparable to SVD in a standard implementation"
+NO,"For larger data sets one may also consider speeding up TEM by online learning 11"
+YES,"Notice that the PLSIQ scheme has the advantage that documents can be represented in a lowdimensional vector space as in LSI while PLSIU requires the calculation of the high dimensional multinomials Pwjd which oers advantages in terms of the space requirements for the indexing information that has to be stored"
+NO,"Finally we have also performed an experiment to stress the importance of tempered EM over standard EMbased model tting"
+NO,"Figure 4 plots the performance of a 128 factor model trained on CRAN in terms of perplexity and in terms of precision as a function of "
+NO,"It can be seen that it is crucial to control the generalization performance of the model since the precision is inversely correlated with the perplexity"
+NO,"In particular notice that the model obtained by maximum likelihood estimation at   1 actually deteriorates the retrieval performance"
