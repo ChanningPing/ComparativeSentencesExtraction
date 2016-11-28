@@ -1,0 +1,304 @@
+On an Equivalence between PLSI and LDA
+Mark Girolami
+School of ICT
+University of Paisley
+PA1 2BE, UK
+mark.girolami@paisley.ac.uk
+Ata Kaban´
+School of Computer Science
+University of Birmingham
+B15 2TT, UK
+a.kaban@cs.bham.ac.uk
+ABSTRACT
+Latent Dirichlet Allocation (LDA) is a fully generative approach
+to language modelling which overcomes the inconsistent
+generative semantics of Probabilistic Latent Semantic
+Indexing (PLSI). This paper shows that PLSI is a maximum
+a posteriori estimated LDA model under a uniform Dirichlet
+prior, therefore the perceived shortcomings of PLSI can be
+resolved and elucidated within the LDA framework.
+Categories and Subject Descriptors
+I.2.7 [Artificial Intelligence]: Natural Language Processing—Language
+Models; H.3.3 [Information Storage and
+Retrieval]: Information Search and Retrieval—Retrieval
+Models
+General Terms
+Algorithms
+Keywords
+Language Model
+1. INTRODUCTION
+Language Modelling (LM), as a statistically principled
+approach to information retrieval (IR), employs the conditional
+probability of a query (q) given a document (d)
+P(q|d), as a means of relevance ranking [4]. One particular
+approach to LM based IR is PLSI [2]. PLSI decomposes
+the joint probability of observing a term w and document
+d with the use of a latent variable k such that w ⊥ d | k
+and P(w, d) = P
+k P(w|k)P(k|d). PLSI has been shown to
+be a low perplexity language model and outperforms latent
+semantic indexing in terms of precision-recall on a number
+of small document collections [2]. However, the generative
+semantics of PLSI are not fully consistent which leads to
+problems in assigning probability to previously unobserved
+documents [1]. LDA [1] is also a probabilistic LM which possesses
+consistent generative semantics and overcomes some
+of the perceived shortcomings of PLSI. However, the following
+section will show that PLSI emerges directly as a specific
+instance of LDA so the claimed shortcomings of PLSI can
+be understood within the LDA framework.
+Copyright is held by the author/owner.
+SIGIR’03, July 28–August 1, 2003, Toronto, Canada.
+ACM 1-58113-646-3/03/0007.
+2. LDA AND PLSI EQUIVALENCE
+A language model M based on a corpus D with vocabulary
+V is represented by LDA as follows. For corpus D
+a k-dimensional parameter  is fixed. In generating document
+d a K-dimensional variable  is drawn from the Dirichlet
+distribution D(|). The parameters P(w|θk) denoting
+the probability of the term w given the k’th element of the
+Dirichlet variable  are then linearly combined to obtain
+the multinomial distribution P(w|) from which a term w
+is drawn. Sampling from P(w|) is repeated for each term
+in the document. Denoting the |V| × K parameters P(w|θk)
+as the matrix P and the number of times that term w appears
+in the document as cd,w then the probability assigned
+to the document d under the LDA model with parameters
+ and P is given as
+P(d|, P) = Z
+4
+dD(|)
+Y
+w∈d
+(XK
+k=1
+P(w|θk)θk
+)cd,w
+where the integral is defined over the support of the Dirichlet
+distribution. Exact inference for LDA is not possible, so
+approximate variational methods have been developed in [1]
+for the purposes of inference and parameter estimation.
+However, another approach to approximate inference and
+estimation for LDA models is the maximum a posteriori estimator
+which obtains the value of the variable  that maximizes
+the posterior distribution given the document d and
+obviates the necessity to obtain the value of the posterior,
+so in the case of LDA, for each document we require to solve
+
+MAP
+d = argmax
+
+log{P(|d, P, )}
+Once the estimate 
+MAP
+d for every document in D has been
+obtained the parameters P and  can be estimated by maximum
+likelihood (ML) estimation. If the Dirichlet distribution
+defines a uniform density across the simplex i.e.  = 1,
+where 1 denotes a K-dimensional vector of ones, then the
+MAP estimator is identical to the ML estimator and so
+
+MAP
+d = 
+ML
+d = argmax
+
+log{P(d|, P)}
+= argmax
+
+X
+w∈d
+cd,w log (XK
+k=1
+P(w|k)θk
+)
+Once 
+ML
+d is obtained the ML estimate for P(w|k) requires
+P
+ML = argmax
+P
+X
+d∈D
+log{P(d|
+ML
+d , P)}
+= argmax
+P
+X
+d∈D
+X
+w∈d
+cd,w log (XK
+k=1
+P(w|k)θ
+ML
+d,k )
+where θ
+ML
+d,k is the k’th element of the ML estimated Dirichlet
+variable for document d. As the Dirichlet variables satisfy
+the constraints θk ≥ 0, ∀ k and P
+k
+θk = 1 these can be
+viewed as the P(k|d) parameters in PLSI.
+As such the interleaving of the two ML estimation procedures
+above will recover exactly the ML estimator for PLSI
+[2]. Therefore PLSI is a MAP / ML estimator of an LDA
+document model under a uniform Dirichlet prior. Viewing
+PLSI as MAP LDA under a uniform prior the heuristic
+folding-in of queries or new documents can in fact be seen
+to be the principled MAP / ML estimation of the Dirichlet
+variable for the query/document. Whilst LDA has been
+shown experimentally to provide a lower perplexity language
+model than PLSI this can now be seen to be as an outcome
+of the approximate estimation method employed, indeed in
+[3] Expectation Propagation is shown to be more accurate
+than the variational approach developed in [1].
+3. IR WITH LDA AND PLSI
+The relevance of a document to a given query under such
+a model can be measured as the likelihood that the query is
+generated given a particular document and the parameterized
+model [4]. Formally this can be posed as the posterior
+probability of the query given the document and the language
+model adopted.
+P(q|d) = Y
+q∈q
+P(q|d)
+cq,q
+What is required is P(q|d) which follows from the LDA representation
+as
+Z
+4
+P(q|)P(|d)d =
+Z
+4
+(XK
+k=1
+P(q|k)θk
+)
+P(|d)d
+which can be seen to be dependent on the expectation over
+the posterior distribution of the Dirichlet random variable
+given the document i.e.
+XK
+k=1
+P(q|k)
+Z
+4
+θkP(|d)d =
+XK
+k=1
+P(q|k)EP (|d) {θk,d}
+The required expectation is problematic due to the posterior
+being intractable, however if it is assumed that the posterior
+is approximately symmetric with one dominant mode then
+EP (|d) {θk} ≈ θ
+MAP
+kd . These MAP estimates for each document
+have already been approximated as part of the model
+parameter optimization process and so
+XK
+k=1
+P(q|k)EP (|d) {θkd} ≈ XK
+k=1
+P(q|k)θ
+MAP
+k,d
+Therefore the probability of generating query q from document
+d under the LDA language model can be approximated
+by
+P(q|d) ≈
+Y
+q∈q
+(XK
+k=1
+P(q|k)θ
+MAP
+k,d
+)cq,q
+For the case where a uniform Dirichlet prior is imposed on
+the LDA model then as shown above we exactly recover
+PLSI and θ
+MAP
+k,d = θ
+ML
+k,d ≡ P(k|d).
+P(q|d) ≈
+Y
+q∈q
+(XK
+k=1
+P(q|k)P(k|d)
+)cq,q
+The log of the above probabilistic measure can be considered
+as a form of cross-entropy P
+q
+cq,q log P(q|d) or entropic cosine
+similarity measure somewhat reminiscent of the PLSI-U
+similarity measure employed to good effect in terms of IR
+performance in [2].
+An alternative LDA based similarity measure is the a posteriori
+Q
+probability of the document given the query P(d|q) =
+w∈d P(w|q)
+cd,w where now
+P(w|q) = XK
+k=1
+P(w|k)EP (|q) {θkq} ≈ XK
+k=1
+P(w|k)θ
+MAP
+k,q
+which leads to the following expression for the required conditional
+probability
+P(d|q) ≈
+Y
+w∈d
+(XK
+k=1
+P(w|k)θ
+MAP
+k,q
+)cd,w
+The θ
+MAP
+k,q for the query requires to be estimated using a
+MAP estimator and as before for a uniform Dirichlet prior
+the LDA model is exactly PLSI so θ
+MAP
+k,q ≡ P(k|q). As
+above taking the log we obtain P
+w
+cd,w log P(w|q). The
+required estimation of the posterior expected value of the
+Dirchlet variable given the query can now be understood
+as the ’heuristic’ method of query ’folding-in’ as originally
+proposed in the PLSI model [2].
+4. CONCLUSIONS
+This paper has clarified the relationship between PLSI
+and LDA. PLSI in fact is a MAP / ML estimated LDA
+model under a uniform Dirichlet distribution and issues surrounding
+’heuristic’ folding-in and likelihood computation
+are now resolved due to the LDA interpretation of the PLSI
+parameters presented.
+5. ACKNOWLEDGMENTS
+Mark Girolami is part of the DETECTOR project funded
+by the DTI Management of Information (LINK) Programme
+and EPSRC grant GR/R55184.
+6. REFERENCES
+[1] D. M. Blei, A. Y. Ng, and M. I. Jordan. Latent
+dirichlet allocation. Journal of Machine Learning
+Research, 3(5):993–1022, 2003.
+[2] T. Hofmann. Probabilistic Latent Semantic Indexing.
+In Proceedings of the 22nd Annual ACM Conference on
+Research and Development in Information Retrieval,
+pages 50–57, Berkeley, California, August 1999.
+[3] T. P. Minka and J. Lafferty. Expectation-propagation
+for the generative aspect model. In Uncertainty in
+Artificial Intelligence, Proceedings of the Eighteenth
+Conference, 2002.
+[4] J. Ponte and W. Croft. A language modeling approach
+to information retrieval. In Proceedings of SIGIR 98,
+pages 275–281. SIGIR, 1998.
+All in-text references underlined in blue are linked to publications on ResearchGate, letting you access and read them immediately.

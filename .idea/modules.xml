@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/ComparativeSentencesExtraction.iml" filepath="$PROJECT_DIR$/.idea/ComparativeSentencesExtraction.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/LitStoryTeller.iml" filepath="$PROJECT_DIR$/.idea/LitStoryTeller.iml" />
     </modules>
   </component>
 </project>

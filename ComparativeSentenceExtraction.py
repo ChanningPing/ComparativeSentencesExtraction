@@ -9,13 +9,19 @@ International Conference on Computational Linguistics-Volume 1 (pp. 241-248). As
 import os
 import sys
 import nltk
+import nltk.tokenize.punkt
+import pickle
+import codecs
 import string
 from nltk.stem.snowball import SnowballStemmer
+
+#global variables setting
 reload(sys)
 sys.setdefaultencoding('utf8')
 stemmer = SnowballStemmer("english")
 window_size=3 #radius from the keyword to generate the sequence
 sequences=[]# sequences
+
 # the keyword list is derived from the keyweord list provided by Liu Bing, but we use the stemmed ones, we also remove repeated ones and phrases
 # phrases are used for exact match in another part
 keyword_dict = {'advantag': 1, 'after': 1, 'ahead': 1, 'all': 1, 'altern': 1, 'altogeth': 1, 'beat': 1, 'befor': 1,
@@ -33,12 +39,26 @@ keyword_dict = {'advantag': 1, 'after': 1, 'ahead': 1, 'all': 1, 'altern': 1, 'a
                 'unmatch': 1, 'unriv': 1,
                 'versus': 1, 'vs': 1, 'win': 1}
 comparative_phrases = ['number one', 'on par with', 'one of few', 'up against']
+
+def SentenceTokenizationTrain(): #the training is unsupervised. More could be added to the corpus at any time.
+    tokenizer = nltk.tokenize.punkt.PunktSentenceTokenizer()
+    text = codecs.open("SentenceTokenizationTrainCorpus", "r", "utf8").read()
+    tokenizer.train(text)
+    out = open("/usr/local/share/nltk_data/literature.pickle", "wb")
+    pickle.dump(tokenizer, out)
+    out.close()
+
 def Paragraph_to_Sentence(paragraph):
     '''
     :param paragraph: a paragraph with multiple sentence
     :return: a list of sentences
     '''
-    Paragraph=0
+    #text = 'The benets of model combination are also very substantial. In all cases the (uniformly) combined model performed better than the best single model. As a sighte ect, model averaging also deliberates from selecting the \optimal" model dimensionality. In terms of computational complexity, despite of the iterative nature of EM, the computing time for TEM model tting at K = 128 was roughly comparable to SVD in a standard implementation. For larger data sets one may also consider speeding up TEM by on-line learning [11]. Notice that the PLSI-Q scheme has the advantage that documents can be represented in a low{dimensional vector space (as in LSI), while PLSI-U requires the calculation of the high{ dimensional multinomials P(wjd) which oers advantages in terms of the space requirements for the indexing information that has to be stored. Finally, we have also performed an experiment to stress the importance of tempered EM over standard EM{based model tting. Figure 4 plots the performance of a 128 factor model trained on CRAN in terms of perplexity and in terms of precision as a function of . It can be seen that it is crucial to control the generalization performance of the model, since the precision is inversely correlated with the perplexity. In particular, notice that the model obtained by maximum likelihood estimation (at  = 1) actually deteriorates the retrieval performance.'
+    sent_detector = nltk.data.load('/usr/local/share/nltk_data/literature.pickle')
+    #print('\n-----\n'.join(sent_detector.tokenize(paragraph.strip())))
+    return sent_detector.tokenize(paragraph.strip())
+
+
 def getSequence (tagged_tuples, idx, tag, word, window_size):
     start = idx - window_size if idx - window_size >= 0  else 0  # start index of sequence
     end = idx + window_size + 1 if (idx + window_size + 1) <= len(tagged_tuples) else len(
@@ -106,12 +126,12 @@ def SequenceBuilder(sentences,window_size):
 
 def main():
 
-    sentences=['Probabilistic Latent Semantic Indexing is a novel approach to automated document indexing which is based on a statistical latent class model for factor analysis of count data.',
-               'Fitted from a training corpus of text documents by a generalization of the Expectation Maximization algorithm, the utilized model is able to deal with domain{specic synonymy as well as with polysemous words.',
-               'In contrast to standard Latent Semantic Indexing (LSI) by Singular Value Decomposition, the probabilistic variant has a solid statistical foundation and denes a proper generative data model.',
-               'Retrieval experiments on a number of test collections indicate substantial performance gains over direct term matching methods as well as over LSI.','In particular, the combination of models with dierent dimensionalities has proven to be advantageous.']
-    with open(os.path.join(os.getcwd(), 'sentences_pLSI.txt')) as f:
-        sentences = f.readlines()
+    #with open(os.path.join(os.getcwd(), 'sentences_pLSI.txt')) as f:
+        #sentences = f.readlines()
+    SentenceTokenizationTrain() #train the sentence segmenter, only one-time effort
+    with open('sentences_pLSI.txt', 'r') as file:
+        paragraph = file.read().replace('\n', ' ')
+    sentences = Paragraph_to_Sentence(paragraph)
     SequenceBuilder(sentences,window_size)
 
 
