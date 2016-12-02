@@ -18,18 +18,28 @@ import pickle
 import codecs
 import string
 import csv
+import sklearn
+
+from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import MultinomialNB
+import numpy as np
 from nltk.stem.snowball import SnowballStemmer
 
 from collections import defaultdict
+
+class Sequences:
+    def __init__(self):
+        self.seqs = []
+        self.seq_labels = []
 
 #global variables setting
 reload(sys)
 sys.setdefaultencoding('utf8')
 stemmer = SnowballStemmer("english")
 window_size=3 #radius from the keyword to generate the sequence
-sequences=[]# sequences
-seq_labels=[]#labels of the sequences
-TAU=0.1
+#sequences=[]# sequences
+#seq_labels=[]#labels of the sequences
+TAU=1
 min_confidence=0.6
 # the keyword list is derived from the keyweord list provided by Liu Bing, but we use the stemmed ones, we also remove repeated ones and phrases
 # phrases are used for exact match in another part
@@ -68,7 +78,17 @@ def Paragraph_to_Sentence(paragraph):
     return sent_detector.tokenize(paragraph.strip())
 
 
-def getSequence (tagged_tuples, idx, tag, word, window_size,label):
+def getSequence (tagged_tuples, idx, tag, word, window_size,label,seq_object):
+    '''
+    given a tagged sentence, index of the keyword, tag of the keyword, the keyword itself, the window size, return a sequence
+    :param tagged_tuples:tagged sentence
+    :param idx:index of the keyword
+    :param tag:tag of the keyword
+    :param word: keyword itself
+    :param window_size: radius from the keyword to form the sequence
+    :param label: label of the tagged sentence
+    :return: modified global list: sequences and seq_labels
+    '''
     start = idx - window_size if idx - window_size >= 0  else 0  # start index of sequence
     end = idx + window_size + 1 if (idx + window_size + 1) <= len(tagged_tuples) else len(
         tagged_tuples)  # end index of sequence
@@ -78,32 +98,47 @@ def getSequence (tagged_tuples, idx, tag, word, window_size,label):
     keyword.append(tag + '_' + word)  # make keyword as a list
     sub_tuples = left_sub_tuples + keyword + right_sub_tuples  # concatenate together
 
-    sequences.append(sub_tuples)
-    seq_labels.append(label)
+    #print(sub_tuples)
+    seq_object.seqs.append(sub_tuples)
+    #for sequence in seq_object.seqs:
+        #print(sequence)
+    seq_object.seq_labels.append(label)
+
+    return seq_object
     #print(tagged_tuples)
     #print("in the other function:"+tag+","+word)
     #print(sub_tuples)
     #print(seq_labels)
 
-def SequenceBuilder(sentences,labels, window_size):
+def SequenceBuilder(sentences,labels, window_size, seq_object):
     '''
+    given a list of sentences, generate a set of sequences
     :param sentences: a list of sentences
     :param window_size: the radius from the keyword to generate the sequence
+    :param seq_object: a object of sequences and corresponding labels
     :return:
     '''
+
+    #seq_object = Sequences()
     for id, text in enumerate(sentences):
         flag='NO' #whether this is a comparative candidate,flag=1:is candidate;flag=0: is not a candidate
+
+
+
         #text = "heavier  than the previous algorithm, but the previous one is number one, as efficient as it seems, our work improves rest of the work "
+        #remove punctuations
         text = text.translate(None, string.punctuation)
+        #POS tag the sentence
+        print(text)
         tagged_tuples = nltk.pos_tag(nltk.word_tokenize(text.lower()))
-        #print(tagged_tuples)
+
 
         # if the sentence contains standard comparative, keep it
         for idx, item in enumerate(tagged_tuples):
             if item[1] == 'JJR' or item[1] == 'RBR' or item[1] == 'JJS' or item[1] == 'RBS':
                 flag='YES'
                 #print(item)
-                getSequence(tagged_tuples, idx, item[1], item[0], window_size,labels[id])
+                seq_object = getSequence(tagged_tuples, idx, item[1], item[0], window_size,labels[id], seq_object)
 
         # if the sentence contains as {} as,keep it, here we increase window size by 1 to accomodate the as...as as context
         indices = [i for i, item in enumerate(tagged_tuples) if item[0] == 'as' and item[1] == 'RB']
@@ -112,14 +147,16 @@ def SequenceBuilder(sentences,labels, window_size):
                             tagged_tuples[index + 2][
                                 0] == 'as' and tagged_tuples[index + 2][1] == 'IN':
                 flag = 'YES'
-                getSequence(tagged_tuples, index + 1, tagged_tuples[index + 1][1], tagged_tuples[index + 1][0],
-                            window_size + 1,labels[id])
+                #print('as X as')
+                seq_object = getSequence(tagged_tuples, index + 1, tagged_tuples[index + 1][1], tagged_tuples[index + 1][0],
+                            window_size + 1,labels[id], seq_object)
 
         # if the sentence contains certain keyword, keep it
         for idx, item in enumerate(tagged_tuples):
             if stemmer.stem(item[0]) in keyword_dict:
                 flag = 'YES'
-                getSequence(tagged_tuples, idx, item[1], str(stemmer.stem(item[0])), window_size,labels[id])
+                #print(stemmer.stem(item[0]))
+                seq_object = getSequence(tagged_tuples, idx, item[1], str(stemmer.stem(item[0])), window_size,labels[id], seq_object)
 
         # if the sentence contains phrases, use this as a feature
         for phrase in comparative_phrases:
@@ -130,30 +167,98 @@ def SequenceBuilder(sentences,labels, window_size):
 
 
     #write sequences into file for later PrefixSpan sequence pattern mining
-    file = open(os.path.join(os.getcwd(), 'sequence.csv'), 'w')
-    for sequence in sequences:
+    file = open(('sequence.csv'), 'w')
+    for sequence in seq_object.seqs:
         file.write("%s\n" % sequence)
 
+    return seq_object
 
-def train():#train/test phase: one-time pass when training corpus is available.
+
+def train(filename):#train/test phase: one-time pass when training corpus is available.
     # train the sentence segmenter, only one-time effort
-    SentenceTokenizationTrain()
+    #SentenceTokenizationTrain()
+
     # read training corpus line by line
     labels=[] #list of labels
     sentences=[]#list of sentences
-    with open("CSRTrainCorpus.txt") as f:
+    with open(filename) as f:#read labels and sentences from file
         rows = [line.split(',') for line in f]  # create a list of lists
         for row in rows:#row[0]: label; row[1]:sentence
             labels.append(row[0])
             sentences.append(row[1])
-    # generate keyword-POS tag sequences from sentences
-    SequenceBuilder(sentences, labels, window_size)
-    # find sequence patterns with PrefixSpan
-    CSR_Rules= PrefixSpanCSR(sequences, seq_labels, TAU,min_confidence)
-    #TODO: train with bayes classifier: read the sentence and label again, build a method to test match between sentence and rule
 
+    # generate keyword-POS tag sequences from sentences
+    seq_object = Sequences()
+    seq_object = SequenceBuilder(sentences, labels, window_size,seq_object)
+
+    # find sequence patterns with PrefixSpan, return in <rule, frequency, num of positive labels, number of negative labels.
+    CSR_Rules= PrefixSpanCSR(seq_object.seqs, seq_object.seq_labels, TAU,min_confidence)
+    # save the patterns to file
+    with open(filename+'_CSR_rules.csv', 'w') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',')
+        writer.writerow(['rule','frequency','sup','confidence','label','ID'])
+        for rule in CSR_Rules:
+            writer.writerow(rule)
+
+    #Done: train with bayes classifier: read the sentence and label again, build a method to test match between sentence and rule
+    # read the rules into a dictionary for quick lookup
+    rule_dict = {}
+    for rule in CSR_Rules:
+        rule_dict[tuple(rule[0])] = rule[1:6] #frequency, sup, confidence, label, id
+        #print(rule_dict[tuple(rule[0])])
+
+    feature_matrix = []
+    for idx, sentence in enumerate(sentences):
+        features = Sentence_Rule_test(sentence, rule_dict, labels[idx])
+        feature_matrix.append(features)
+    print(feature_matrix)
+
+    #train the Naive Bayes classifier
+
+    clf = MultinomialNB()
+    data = np.array(feature_matrix)
+    data_X = data[:, 0: len(rule_dict)].astype(np.float)
+    data_Y = data[:, len(rule_dict)]
+    y_pred = clf.fit(data_X, data_Y).predict(data_X)
+    print("Number of mislabeled points out of a total %d points : %d"  % (data_X.shape[0], (data_Y != y_pred).sum()))
+    #TODO: cross-validation, predict a new paper
     #print(sequences)
     #print(seq_labels)
+def Sentence_Rule_test (sentence, rule_dict, label):
+    '''
+    given a sentence and its label, return a feature list (feature meaning the covered rules)
+    :param sentence: a raw sentence
+    :param rule_dict: a rule dictionary
+    :param label: label of sentence (comparative or not)
+    :return: a feature list (features are all keys (rules) of the dict): 1-sentence cover this rule; 0-sentence doesn't cover this rule
+    the last column of the feature will be the label
+    '''
+    print('=======================test now')
+    sentence_as_list = []
+    sentence_as_list.append(sentence)
+
+    seq_object = Sequences()
+    print('====first time object')
+    for sequence in seq_object.seqs:
+        print(sequence)
+    seq_object = SequenceBuilder(sentence_as_list, label, window_size, seq_object)
+    print('====after time object')
+    for sequence in seq_object.seqs:
+        print(sequence)
+    features = [0] * (len(rule_dict) + 1)
+    for sequence in seq_object.seqs:
+        if tuple(sequence) in rule_dict:
+            #print(sequence)
+            index = rule_dict[tuple(sequence)][4]
+            features[index] = 1
+    features[len(rule_dict)] = label
+    return features
+
+
+
+
+
+
 
 def PrefixSpanCSR(sequences,seq_labels,TAU,min_confidence):
     '''
@@ -195,21 +300,36 @@ def PrefixSpanCSR(sequences,seq_labels,TAU,min_confidence):
     mine_rec([], [(i, 0) for i in xrange(len(sequences))])
 
     #filtering  the patterns by min_sup and min_confidence
+    count = 0
     CSR_rules=[]
-    for result in results:
-        sup = result[2]
+    for result in results: #[0]the rule; [1]the frequency of the rule; [2]number of positive labels of this rule [3] number of negative labels of this rule
+        positive_sup = result[2]
+        negative_sup = result[3]
         min_sup = result[1] * TAU
-        confidence = result[2] / result[1]
-        if sup >= min_sup and confidence >= min_confidence:
-            CSR_rules.append(result)
-            print("sup=" + str(sup) + ",min_sup=" + str(min_sup) + ", confidence=" + str(confidence))
-            print(result[0])
+        positive_confidence = result[2] / result[1]
+        negative_confidence = result[3] / result[1]
+        #generate positive and negative rules respectively
+        if positive_sup >= min_sup and positive_confidence >= min_confidence: #positive rules
+            rule = []
+            rule.append(result[0])
+            rule.append(result[1])
+            rule.append(positive_sup)
+            rule.append(positive_confidence)
+            rule.append('YES')
+            rule.append(count)
+            count += 1
+            CSR_rules.append(rule)
+        if negative_sup >= min_sup and negative_confidence >= min_confidence: #negative rules
+            rule = []
+            rule.append(result[0])
+            rule.append(result[1])
+            rule.append(negative_sup)
+            rule.append(negative_confidence)
+            rule.append('NO')
+            rule.append(count)
+            count += 1
+            CSR_rules.append(rule)
 
-    with open('CSR_rules.csv', 'w') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',')
-        writer.writerow(['rule','frequency','sup','confidence'])
-        for rule in CSR_rules:
-            writer.writerow(rule)
     return CSR_rules
 
 def predict():
@@ -221,7 +341,8 @@ def predict():
 
 
 def main():
-    train()
+    filename = "CSRTrainCorpus.txt"
+    train(filename)
 
 
 
